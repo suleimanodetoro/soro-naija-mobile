@@ -1,19 +1,32 @@
 // app/(auth)/login.tsx
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/auth';
+import { authApi } from '../services/api';
 
 export default function LoginScreen() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
   const router = useRouter();
+  const { setToken, setUser } = useAuthStore();
 
-  const handleLogin = () => {
-    // Implement login logic here
-    useAuthStore.getState().setToken('dummy-token'); // Temporary for testing
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const { token, user } = await authApi.login(email, password);
+      setToken(token);
+      setUser(user);
+      router.replace('/(tabs)');
+    } catch (err) {
+      setError('Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,6 +38,8 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         style={styles.input}
         autoCapitalize="none"
+        keyboardType="email-address"
+        disabled={loading}
       />
       <TextInput
         label="Password"
@@ -32,11 +47,22 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         secureTextEntry
         style={styles.input}
+        disabled={loading}
       />
-      <Button mode="contained" onPress={handleLogin} style={styles.button}>
+      {error ? <HelperText type="error">{error}</HelperText> : null}
+      <Button 
+        mode="contained" 
+        onPress={handleLogin} 
+        style={styles.button}
+        loading={loading}
+        disabled={loading}
+      >
         Login
       </Button>
-      <Button onPress={() => router.push('/(auth)/register')}>
+      <Button 
+        onPress={() => router.push('/(auth)/register')}
+        disabled={loading}
+      >
         Create Account
       </Button>
     </View>
@@ -44,35 +70,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 20,
-    },
-    title: {
-      marginBottom: 20,
-      textAlign: 'center',
-    },
-    input: {
-      marginBottom: 12,
-    },
-    button: {
-      marginTop: 12,
-      marginBottom: 12,
-    },
-    languageSelector: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      padding: 20,
-      backgroundColor: '#f5f5f5',
-      borderRadius: 10,
-      marginBottom: 20,
-    },
-    recordingSection: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    recordButton: {
-      padding: 20,
-    },
-  });
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  title: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    marginBottom: 12,
+  },
+  button: {
+    marginTop: 12,
+    marginBottom: 12,
+  },
+});

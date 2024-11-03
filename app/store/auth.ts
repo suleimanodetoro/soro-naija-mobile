@@ -1,38 +1,41 @@
 // app/store/auth.ts
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   id: string;
-  email: string;
   name: string;
+  email: string;
 }
 
 interface AuthState {
-  user: User | null;
   token: string | null;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  logout: () => void;
+  user: User | null;
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  setToken: (token: string | null) => void;
+  setUser: (user: User | null) => void;
+  logout: () => void;
+  setIsLoading: (isLoading: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
       token: null,
+      user: null,
       isLoading: true,
-      setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
-      logout: () => set({ user: null, token: null }),
-      setIsLoading: (loading) => set({ isLoading: loading }),
+      setUser: (user) => set({ user }),
+      logout: () => set({ token: null, user: null }),
+      setIsLoading: (isLoading) => set({ isLoading }),
     }),
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setIsLoading(false);
+      },
     }
   )
 );
