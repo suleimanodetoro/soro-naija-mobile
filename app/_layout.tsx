@@ -1,37 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+// app/_layout.tsx
 import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { Slot, useSegments, useRouter } from 'expo-router';
+import { PaperProvider } from 'react-native-paper';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { useAuthStore } from './store/auth';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const segments = useSegments();
+  const router = useRouter();
+  const { token, isLoading } = useAuthStore();
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    if (!isLoading) {
+      const inAuthGroup = segments[0] === '(auth)';
+      
+      if (!token && !inAuthGroup) {
+        // Redirect to the sign-in page.
+        router.replace('/(auth)/login');
+      } else if (token && inAuthGroup) {
+        // Redirect away from the sign-in page.
+        router.replace('/(tabs)');
+      }
     }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+  }, [token, segments, isLoading]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <PaperProvider>
+        <Slot />
+      </PaperProvider>
+    </QueryClientProvider>
   );
 }
