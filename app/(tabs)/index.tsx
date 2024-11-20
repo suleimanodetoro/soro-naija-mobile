@@ -1,7 +1,8 @@
 // app/(tabs)/index.tsx
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useWhisperTranscription } from '@/hooks/useWhisperTranscription';
 import React, { useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Button, Text, Card, IconButton, Portal, Modal, ProgressBar } from 'react-native-paper';
 
 const LANGUAGES = [
@@ -17,30 +18,68 @@ export default function TranslateScreen() {
     isRecording,
     isPlaying,
     recordingUri,
-    error,
+    error: recordingError,
     startRecording,
     stopRecording,
     playRecording,
     stopPlaying,
   } = useAudioRecorder();
 
+  const {
+    transcribe,
+    isTranscribing,
+    transcriptionResult,
+    error: transcriptionError,
+  } = useWhisperTranscription();
+
   const [translating, setTranslating] = useState(false);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
-  const [translatedAudio, setTranslatedAudio] = useState<string | null>(null);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [selectingLanguage, setSelectingLanguage] = useState<'from' | 'to' | null>(null);
   const [fromLanguage, setFromLanguage] = useState(LANGUAGES[0]);
   const [toLanguage, setToLanguage] = useState(LANGUAGES[1]);
 
+  const handleStartRecording = async () => {
+    try {
+      console.log('Starting recording...');
+      await startRecording();
+      console.log('Recording started successfully');
+    } catch (err) {
+      console.error('Error starting recording:', err);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      console.log('Stopping recording...');
+      const uri = await stopRecording();
+      console.log('Recording stopped, uri:', uri);
+      
+      if (uri) {
+        console.log('Starting transcription...');
+        console.log('Source language:', fromLanguage.code);
+        const result = await transcribe(uri, fromLanguage.code);
+        console.log('Transcription result:', result);
+      } else {
+        console.log('No URI received from stopRecording');
+      }
+    } catch (err) {
+      console.error('Failed to process recording:', err);
+    }
+  };
+
   const handleTranslate = async () => {
-    if (!recordingUri) return;
+    if (!transcriptionResult) {
+      console.log('No transcription result available for translation');
+      return;
+    }
     
     try {
+      console.log('Starting translation...');
       setTranslating(true);
-      // TODO: Implement translation logic here
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-      setTranslatedText("Translation will appear here...");
-      setTranslatedAudio("translated-audio-uri");
+      const result = await transcribe(recordingUri!, fromLanguage.code, 'translate');
+      console.log('Translation result:', result);
+      setTranslatedText(result.text);
     } catch (err) {
       console.error('Translation failed:', err);
     } finally {
@@ -49,7 +88,7 @@ export default function TranslateScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Card style={styles.languageCard}>
         <Card.Content>
           <View style={styles.languageSelector}>
@@ -92,55 +131,89 @@ export default function TranslateScreen() {
       </Card>
 
       <View style={styles.recordingSection}>
-        {error && (
-          <Text style={styles.errorText}>{error}</Text>
+        {(recordingError || transcriptionError) && (
+          <Text style={styles.errorText}>
+            {recordingError || transcriptionError}
+          </Text>
         )}
         
         <View style={styles.recordingControls}>
           <Button
             mode="contained"
-            onPress={isRecording ? stopRecording : startRecording}
+            onPress={isRecording ? handleStopRecording : handleStartRecording}
             icon={isRecording ? 'stop' : 'microphone'}
             style={[styles.controlButton, isRecording && styles.recordingButton]}
+            disabled={isTranscribing || translating}
           >
             {isRecording ? 'Stop Recording' : 'Start Recording'}
           </Button>
 
-          {recordingUri && !isRecording && (
-            <>
-              <Button
-                mode="outlined"
-                onPress={isPlaying ? stopPlaying : playRecording}
-                icon={isPlaying ? 'stop' : 'play'}
-                style={styles.controlButton}
-              >
-                {isPlaying ? 'Stop' : 'Play'}
-              </Button>
+          {/* Debug info in development */}
+          {__DEV__ && (
+            <Text style={styles.debugText}>
+              {recordingUri ? `Recording URI: ${recordingUri}` : 'No recording URI yet'}
+            </Text>
+          )}
+
+          {recordingUri && !isRecording && !isTranscribing && (
+            <Button
+              mode="outlined"
+              onPress={isPlaying ? stopPlaying : playRecording}
+              icon={isPlaying ? 'stop' : 'play'}
+              style={styles.controlButton}
+              disabled={isTranscribing || translating}
+            >
+              {isPlaying ? 'Stop' : 'Play'}
+            </Button>
+          )}
+        </View>
+
+        {(isTranscribing || translating) && (
+          <View style={styles.processingContainer}>
+            <Text>{isTranscribing ? 'Transcribing...' : 'Translating...'}</Text>
+            <ProgressBar indeterminate style={styles.progressBar} />
+          </View>
+        )}
+
+        {/* Debug info for states */}
+        {__DEV__ && (
+          <View style={styles.debugSection}>
+            <Text style={styles.debugText}>isRecording: {String(isRecording)}</Text>
+            <Text style={styles.debugText}>isTranscribing: {String(isTranscribing)}</Text>
+            <Text style={styles.debugText}>isTranslating: {String(translating)}</Text>
+            <Text style={styles.debugText}>From Language: {fromLanguage.code}</Text>
+            <Text style={styles.debugText}>To Language: {toLanguage.code}</Text>
+          </View>
+        )}
+
+        {transcriptionResult && !translating && (
+          <Card style={styles.resultCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.resultTitle}>
+                Transcription:
+              </Text>
+              <Text variant="bodyLarge">{transcriptionResult}</Text>
               
               <Button
                 mode="contained"
                 onPress={handleTranslate}
                 icon="translate"
-                style={styles.controlButton}
+                style={[styles.controlButton, styles.translateButton]}
                 loading={translating}
                 disabled={translating}
               >
                 Translate
               </Button>
-            </>
-          )}
-        </View>
-
-        {translating && (
-          <View style={styles.translatingContainer}>
-            <Text>Translating...</Text>
-            <ProgressBar indeterminate style={styles.progressBar} />
-          </View>
+            </Card.Content>
+          </Card>
         )}
 
         {translatedText && (
-          <Card style={styles.translationCard}>
+          <Card style={styles.resultCard}>
             <Card.Content>
+              <Text variant="titleMedium" style={styles.resultTitle}>
+                Translation:
+              </Text>
               <Text variant="bodyLarge">{translatedText}</Text>
             </Card.Content>
           </Card>
@@ -179,7 +252,7 @@ export default function TranslateScreen() {
           ))}
         </Modal>
       </Portal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -245,5 +318,33 @@ const styles = StyleSheet.create({
   },
   languageButton: {
     marginVertical: 4,
+  },
+  resultCard: {
+    marginTop: 24,
+    width: '100%',
+  },
+  resultTitle: {
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+  translateButton: {
+    marginTop: 16,
+  },
+  processingContainer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  debugText: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  debugSection: {
+    marginTop: 16,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    width: '100%',
   },
 });

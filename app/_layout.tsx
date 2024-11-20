@@ -8,11 +8,13 @@ import { useAuthStore } from './store/auth';
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
+  console.log('Root layout rendering');
   const segments = useSegments();
   const router = useRouter();
   const { token, isLoading } = useAuthStore();
 
   useEffect(() => {
+    console.log('Auth effect running', { token, isLoading, segments });
     if (!isLoading) {
       const inAuthGroup = segments[0] === '(auth)';
       
