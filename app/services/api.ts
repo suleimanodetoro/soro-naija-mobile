@@ -1,9 +1,11 @@
 // app/services/api.ts
 import { mockAuthApi } from './mockApi';
-import { HUGGING_FACE_API_KEY } from '@env';
+import Constants from 'expo-constants';
+
+const HUGGING_FACE_API_KEY = Constants.expoConfig.extra.HUGGING_FACE_API_KEY;
 
 
-export { HUGGING_FACE_API_KEY };
+
 
 export const authApi = mockAuthApi;
 

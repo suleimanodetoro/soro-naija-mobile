@@ -153,7 +153,7 @@ class AudioService {
     }
   }
 
-  async playRecording(uri: string): Promise<void> {
+  async playRecording(uri: string, onPlaybackFinish?: () => void): Promise<void> {
     try {
       console.log('Starting playback for URI:', uri);
 
@@ -178,12 +178,17 @@ class AudioService {
 
       this.sound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) {
-          console.error('Playback status error:', status);
+          // It's normal for isLoaded to be false after unloading
           return;
         }
 
         if (status.didJustFinish) {
           console.log('Playback finished');
+          // Notify the hook that playback has finished
+          if (onPlaybackFinish) {
+            onPlaybackFinish();
+          }
+          // Clean up the sound
           this.stopPlaying().catch(console.error);
         }
       });

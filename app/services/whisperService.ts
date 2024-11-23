@@ -2,7 +2,9 @@
 import * as FileSystem from 'expo-file-system';
 import { FFmpegKit } from 'ffmpeg-kit-react-native';
 import { Platform } from 'react-native';
-import { HUGGING_FACE_API_KEY } from '@env';
+import Constants from 'expo-constants';
+
+const HUGGING_FACE_API_KEY = Constants.expoConfig.extra.HUGGING_FACE_API_KEY;
 interface TranscriptionOptions {
   language?: string;
   task?: 'transcribe' | 'translate';

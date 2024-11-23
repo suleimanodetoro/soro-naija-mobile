@@ -46,14 +46,20 @@ export function useAudioRecorder() {
       setError('No recording available to play');
       return;
     }
-    
+
     try {
       setError(null);
       console.log('Hook: Playing recording:', recordingUri);
-      await audioService.playRecording(recordingUri);
       setIsPlaying(true);
+
+      await audioService.playRecording(recordingUri, () => {
+        // This callback is called when playback finishes
+        console.log('Hook: Playback finished');
+        setIsPlaying(false);
+      });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to play recording';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to play recording';
       console.error('Hook: Playback error:', errorMessage);
       setError(errorMessage);
       setIsPlaying(false);
